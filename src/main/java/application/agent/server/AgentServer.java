@@ -32,7 +32,10 @@ public class AgentServer implements Runnable {
         while (agent.isNotArrested()) {
             ServerSocket serverSocket = openServerSocker();
             acceptRequest(serverSocket);
-
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+            }
         }
     }
 
@@ -52,7 +55,6 @@ public class AgentServer implements Runnable {
     private void handleClient(Socket clientSocket) {
         try (Scanner in = new Scanner(new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
-
             sendRandomAlias(out);
 
             Agency agencyGuess = receiveAgencyGuess(in);
@@ -64,11 +66,44 @@ public class AgentServer implements Runnable {
 
             sendOkSignal(out);
 
+            String response = receiveResponse(in);
+
+            if (response == OK) {
+                handleSameAgency(in, out);
+            } else {
+
+            }
+
         } catch (IOException e) {
 
         }
 
 
+    }
+
+    private void handleSameAgency(Scanner in, PrintWriter out) {
+        outputWriter.print("A kliens is ugyanahhoz az ügynökséghez tartozik mint ez a szerver!");
+        sendSecret(out);
+        receiveSecret(in);
+    }
+
+    private void receiveSecret(Scanner in) {
+        String randomSecretFromClient = in.nextLine();
+        outputWriter.print("Titok fogadva a klienstől: %s.", randomSecretFromClient);
+        agent.addSecret(randomSecretFromClient);
+
+    }
+
+    private void sendSecret(PrintWriter out) {
+        String randomSecret = agent.getRandomSecret();
+        outputWriter.print("Random titok küldése a kliensnek: %s.", randomSecret);
+        out.println(randomSecret);
+    }
+
+    private String receiveResponse(Scanner in) {
+        String response = in.nextLine();
+        outputWriter.print("Kapott üzenet: %s", response);
+        return response;
     }
 
     private void sendOkSignal(PrintWriter out) {

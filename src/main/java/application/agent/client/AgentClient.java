@@ -15,6 +15,7 @@ import java.util.Scanner;
 import java.util.concurrent.*;
 
 public class AgentClient implements Runnable {
+    private static final String OK = "OK";
     private final OutputWriter outputWriter;
     private final Agent agent;
     private final AgentConfiguration agentConfiguration;
@@ -44,9 +45,10 @@ public class AgentClient implements Runnable {
     private void connectToServer() {
         Integer currentPort = agentServer.getCurrentPort();
         int port = RandomUtils.generatePort(agentConfiguration.getLowerPortBoundary(), agentConfiguration.getUpperPortBoundary(), currentPort);
-
         try (Socket socket = new Socket("localhost", port); Scanner in = new Scanner(new InputStreamReader(socket.getInputStream()));
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+
+
             String alias = receiveAlias(in);
 
             Agency agency = getAgencyBasedOnAlias(alias);
@@ -55,11 +57,47 @@ public class AgentClient implements Runnable {
             if (!receivedAcknowledgement(in)) {
                 return;
             }
-
             saveAgentToKnownAgents(alias, agency);
 
+            if (agent.getAgency().equals(agency)) {
+                handleSameAgency(in, out);
+            } else {
+                handleDifferentAgency();
+            }
+
         } catch (IOException e) {
+
         }
+
+    }
+
+    private void handleSameAgency(Scanner in, PrintWriter out) {
+        sendOkSignal(out);
+
+        receiveSecret(in);
+        sendSecret(out);
+
+    }
+
+    private void sendSecret(PrintWriter out) {
+        String randomSecret = agent.getRandomSecret();
+        outputWriter.print("Random titok küldése a szervernek: %s.", randomSecret);
+        out.println(randomSecret);
+    }
+
+    private void receiveSecret(Scanner in) {
+        String randomSecretFromServer = in.nextLine();
+        outputWriter.print("Titok fogadva a szervertől: %s.", randomSecretFromServer);
+        agent.addSecret(randomSecretFromServer);
+
+    }
+
+    private void sendOkSignal(PrintWriter out) {
+        outputWriter.print("A szerver ugyanahhoz az ügynökséghez tartozik mint ez a kliens, OK küldése!");
+        out.println(OK);
+    }
+
+    private void handleDifferentAgency() {
 
     }
 

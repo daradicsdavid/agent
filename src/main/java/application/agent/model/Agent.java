@@ -50,7 +50,7 @@ public class Agent {
     }
 
     public String getRandomAlias() {
-        int random = RandomUtils.getRandom(0, aliases.size());
+        int random = RandomUtils.getRandom(0, aliases.size() - 1);
         return aliases.get(random);
     }
 
@@ -64,5 +64,13 @@ public class Agent {
 
     public void putAgentToKnownAgents(String alias, Agency agency) {
         knownAgents.put(alias, agency);
+    }
+
+    public String getRandomSecret() {
+        return secrets.getRandomSecret();
+    }
+
+    public void addSecret(String secretWord) {
+        secrets.addSecret(secretWord);
     }
 }

@@ -1,5 +1,7 @@
 package application.agent.model;
 
+import application.util.RandomUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,7 +14,9 @@ public class Secrets {
     }
 
     public void addSecret(String secretWord) {
-        secrets.add(new Secret(secretWord));
+        if (secrets.stream().noneMatch(secret -> secret.getSecret().equals(secretWord))) {
+            secrets.add(new Secret(secretWord));
+        }
     }
 
     @Override
@@ -20,5 +24,9 @@ public class Secrets {
         return "Secrets{" +
                 "secrets=" + secrets +
                 '}';
+    }
+
+    public String getRandomSecret() {
+        return RandomUtils.getRandomElement(secrets).getSecret();
     }
 }

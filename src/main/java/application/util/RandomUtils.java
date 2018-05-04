@@ -1,5 +1,7 @@
 package application.util;
 
+
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class RandomUtils {
@@ -18,5 +20,10 @@ public class RandomUtils {
 
     public static int getRandom(int lowerBound, int upperBound) {
         return ThreadLocalRandom.current().nextInt(lowerBound, upperBound + 1);
+    }
+
+    public static <T> T getRandomElement(List<T> list) {
+        int random = getRandom(0, list.size() - 1);
+        return list.get(random);
     }
 }
