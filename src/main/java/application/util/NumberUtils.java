@@ -1,15 +1,15 @@
-package main.util;
+package application.util;
 
-import main.OutputWriter;
+
+import static application.OutputWriter.staticPrint;
 
 public class NumberUtils {
 
     public static int toNumber(String string) {
         try {
-            int i = Integer.parseInt(string);
-            return i;
+            return Integer.parseInt(string);
         } catch (NumberFormatException e) {
-            OutputWriter.print("%s nem szám!", string);
+            staticPrint("%s nem szám!", string);
             throw e;
         }
     }
