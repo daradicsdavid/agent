@@ -14,8 +14,10 @@ import java.net.Socket;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
+import static application.constant.MessageConstants.NOT_OK;
+import static application.constant.MessageConstants.OK;
+
 public class AgentClient implements Runnable {
-    private static final String OK = "OK";
     private final OutputWriter outputWriter;
     private final Agent agent;
     private final AgentConfiguration agentConfiguration;
@@ -43,12 +45,10 @@ public class AgentClient implements Runnable {
     }
 
     private void connectToServer() {
-        Integer currentPort = agentServer.getCurrentPort();
-        int port = RandomUtils.generatePort(agentConfiguration.getLowerPortBoundary(), agentConfiguration.getUpperPortBoundary(), currentPort);
+        int port = RandomUtils.generatePort(agentConfiguration.getLowerPortBoundary(), agentConfiguration.getUpperPortBoundary());
+        outputWriter.print("Port próba: %s", port);
         try (Socket socket = new Socket("localhost", port); Scanner in = new Scanner(new InputStreamReader(socket.getInputStream()));
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-
-
             String alias = receiveAlias(in);
 
             Agency agency = getAgencyBasedOnAlias(alias);
@@ -62,14 +62,14 @@ public class AgentClient implements Runnable {
             if (agent.getAgency().equals(agency)) {
                 handleSameAgency(in, out);
             } else {
-                handleDifferentAgency();
+                handleDifferentAgency(in, out);
             }
 
-        } catch (IOException e) {
-
+        } catch (IOException | TimeoutException e) {
         }
 
     }
+
 
     private void handleSameAgency(Scanner in, PrintWriter out) {
         sendOkSignal(out);
@@ -97,7 +97,10 @@ public class AgentClient implements Runnable {
         out.println(OK);
     }
 
-    private void handleDifferentAgency() {
+    private void handleDifferentAgency(Scanner in, PrintWriter out) {
+        outputWriter.print("A szerver nem ugyanahhoz az ügynökséghez tartozik mint ez a kliens, ??? küldése!");
+
+        out.println(NOT_OK);
 
     }
 
@@ -139,10 +142,24 @@ public class AgentClient implements Runnable {
         return agencyByNumber;
     }
 
-    private String receiveAlias(Scanner in) {
-        String alias = in.nextLine();
+    private String receiveAlias(Scanner in) throws TimeoutException {
+        String alias = readAsync(in);
         outputWriter.print("Kapott álnév: %s", alias);
         return alias;
+    }
+
+    private String readAsync(Scanner in) throws TimeoutException {
+        FutureTask<String> task = new FutureTask<>(in::nextLine);
+
+        Thread thread = new Thread(task);
+        thread.setDaemon(true);
+        thread.start();
+        try {
+            return task.get(500, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            outputWriter.print("Hoppá");
+            throw new TimeoutException();
+        }
     }
 
     private String receiveResponseWithTimeOut(Scanner scanner) throws TimeoutException {

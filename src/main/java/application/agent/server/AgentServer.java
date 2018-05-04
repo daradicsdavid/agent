@@ -14,12 +14,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
 
+import static application.constant.MessageConstants.NOT_OK;
+import static application.constant.MessageConstants.OK;
+
 public class AgentServer implements Runnable {
-    private static final String OK = "OK";
+
     private final OutputWriter outputWriter;
     private final Agent agent;
     private final AgentConfiguration agentConfiguration;
-    private Integer currentPort;
+    private volatile Integer currentPort;
+    private final Object portLock = new Object();
 
     public AgentServer(Agent agent, AgentConfiguration agentConfiguration) {
         this.agent = agent;
@@ -30,7 +34,7 @@ public class AgentServer implements Runnable {
     @Override
     public void run() {
         while (agent.isNotArrested()) {
-            ServerSocket serverSocket = openServerSocker();
+            ServerSocket serverSocket = openServerSocket();
             acceptRequest(serverSocket);
             try {
                 serverSocket.close();
@@ -42,7 +46,10 @@ public class AgentServer implements Runnable {
     private void acceptRequest(ServerSocket serverSocket) {
         try {
             Socket clientSocket = serverSocket.accept();
+            outputWriter.print("%s - %s", clientSocket.getLocalPort(), currentPort);
+
             handleClient(clientSocket);
+            clientSocket.close();
             serverSocket.close();
         } catch (IOException e) {
             try {
@@ -68,9 +75,9 @@ public class AgentServer implements Runnable {
 
             String response = receiveResponse(in);
 
-            if (response == OK) {
+            if (response.equals(OK)) {
                 handleSameAgency(in, out);
-            } else {
+            } else if (response.equals(NOT_OK)) {
 
             }
 
@@ -130,26 +137,28 @@ public class AgentServer implements Runnable {
         out.println(randomAlias);
     }
 
-    private ServerSocket openServerSocker() {
-        setCurrentPort(null);
-        ServerSocket serverSocket = null;
-        while (getCurrentPort() == null) {
-            try {
-                setCurrentPort(RandomUtils.generatePort(agentConfiguration.getLowerPortBoundary(), agentConfiguration.getUpperPortBoundary()));
-                serverSocket = new ServerSocket(currentPort);
-                serverSocket.setSoTimeout(agentConfiguration.getUpperBoundaryOfWait());
-            } catch (IOException e) {
-                setCurrentPort(null);
+    private ServerSocket openServerSocket() {
+        synchronized (portLock) {
+            currentPort = null;
+            ServerSocket serverSocket = null;
+            while (getCurrentPort() == null) {
+                try {
+                    currentPort = RandomUtils.generatePort(agentConfiguration.getLowerPortBoundary(), agentConfiguration.getUpperPortBoundary());
+                    serverSocket = new ServerSocket(getCurrentPort());
+                    serverSocket.setSoTimeout(agentConfiguration.getUpperBoundaryOfWait());
+                    outputWriter.print("Kapott port: %s", getCurrentPort());
+                } catch (IOException e) {
+                    currentPort = null;
+                }
             }
+            return serverSocket;
         }
-        return serverSocket;
     }
 
-    private synchronized void setCurrentPort(Integer portNumber) {
-        currentPort = portNumber;
-    }
 
     public synchronized Integer getCurrentPort() {
-        return currentPort;
+        synchronized (portLock) {
+            return currentPort;
+        }
     }
 }
